@@ -22,6 +22,7 @@ const isValidAmazonProductURL = (url: string) => {
 const Searchbar = () => {
     const [searchPrompt, setSearchPrompt] = useState('')
     const [isLoading, setIsLoading] = useState(false)
+    const [message, setMessage] = useState('')
 
 
 
@@ -34,10 +35,16 @@ const Searchbar = () => {
 
         try {
             setIsLoading(true)
+            setMessage('')
 
-            const product = await scrapeAndStoreProduct(searchPrompt)
+            const result = await scrapeAndStoreProduct(searchPrompt)
+
+            if (result?.error) {
+                setMessage(result.error)
+            }
         } catch (error) {
             console.log(error)
+            setMessage('Could not complete the search. Products already saved are still listed below.')
         } finally {
             setIsLoading(false)
         }
@@ -62,6 +69,11 @@ const Searchbar = () => {
             >
                 {isLoading ? 'Searching...' : 'Search'}
             </button>
+            {message ? (
+                <p className="w-full text-base text-primary" role="alert">
+                    {message}
+                </p>
+            ) : null}
         </form>
     )
 }
