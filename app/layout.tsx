@@ -1,12 +1,18 @@
 import Navbar from '@/components/Navbar'
 import './globals.css'
 import type { Metadata } from 'next'
-import { Inter, Space_Grotesk } from 'next/font/google'
+import localFont from 'next/font/local'
 
-const inter = Inter({ subsets: ['latin'] })
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700']
+const inter = localFont({
+  src: './fonts/InterLatin.woff2',
+  weight: '100 900',
+  style: 'normal',
+})
+
+const spaceGrotesk = localFont({
+  src: './fonts/SpaceGroteskLatin.woff2',
+  weight: '300 700',
+  style: 'normal',
 })
 
 export const metadata: Metadata = {
