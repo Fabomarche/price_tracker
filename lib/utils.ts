@@ -1,4 +1,4 @@
-import { PriceHistoryItem, Product } from "@/types";
+import type { PriceHistoryItem, Product } from "@/types";
 
 const Notification = {
     WELCOME: 'WELCOME',
@@ -28,6 +28,21 @@ export function extractPrice(...elements: any) {
     }
 
     return '';
+}
+
+// Number('') is 0, so a missing price must stay null instead of being stored.
+export function parsePrice(value: string): number | null {
+    if (!value) return null;
+
+    const price = Number(value);
+
+    if (!Number.isFinite(price) || price <= 0) return null;
+
+    return price;
+}
+
+export function isPositivePrice(price: unknown): price is number {
+    return typeof price === "number" && Number.isFinite(price) && price > 0;
 }
 
 // Extracts and returns the currency symbol from an element.
@@ -64,35 +79,40 @@ export function extractDescription($: any) {
     return "";
 }
 
+function positivePriceItems(priceList: PriceHistoryItem[]) {
+    return priceList.filter((item) => isPositivePrice(item.price));
+}
+
 export function getHighestPrice(priceList: PriceHistoryItem[]) {
-    let highestPrice = priceList[0];
+    const validPrices = positivePriceItems(priceList);
 
-    for (let i = 0; i < priceList.length; i++) {
-        if (priceList[i].price > highestPrice.price) {
-            highestPrice = priceList[i];
-        }
-    }
+    if (validPrices.length === 0) return 0;
 
-    return highestPrice.price;
+    return validPrices.reduce(
+        (highest, item) => (item.price > highest ? item.price : highest),
+        validPrices[0].price
+    );
 }
 
 export function getLowestPrice(priceList: PriceHistoryItem[]) {
-    let lowestPrice = priceList[0];
+    const validPrices = positivePriceItems(priceList);
 
-    for (let i = 0; i < priceList.length; i++) {
-        if (priceList[i].price < lowestPrice.price) {
-            lowestPrice = priceList[i];
-        }
-    }
+    if (validPrices.length === 0) return 0;
 
-    return lowestPrice.price;
+    return validPrices.reduce(
+        (lowest, item) => (item.price < lowest ? item.price : lowest),
+        validPrices[0].price
+    );
 }
 
 export function getAveragePrice(priceList: PriceHistoryItem[]) {
-    const sumOfPrices = priceList.reduce((acc, curr) => acc + curr.price, 0);
-    const averagePrice = sumOfPrices / priceList.length || 0;
+    const validPrices = positivePriceItems(priceList);
 
-    return averagePrice;
+    if (validPrices.length === 0) return 0;
+
+    const sumOfPrices = validPrices.reduce((acc, curr) => acc + curr.price, 0);
+
+    return sumOfPrices / validPrices.length;
 }
 
 export const getEmailNotifType = (

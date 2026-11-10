@@ -4,19 +4,25 @@ import { revalidatePath } from "next/cache"
 import Product from "../models/product.model"
 import { connectToDB } from "../mongoose"
 import { scrapeAmazonProduct } from "../scraper"
-import { getAveragePrice, getHighestPrice, getLowestPrice } from "../utils"
+import { getAveragePrice, getHighestPrice, getLowestPrice, isPositivePrice } from "../utils"
 import { User } from "@/types"
 import { generateEmailBody, sendEmail } from "../nodemailer"
 
 export async function scrapeAndStoreProduct(productUrl: string) {
-    if (!productUrl) return
+    if (!productUrl) {
+        return { error: "Could not scrape this product. Please provide a product link." }
+    }
 
     try {
-        connectToDB()
+        await connectToDB()
 
         const scrapedProduct = await scrapeAmazonProduct(productUrl)
 
-        if (!scrapedProduct) return;
+        if (!scrapedProduct || !isPositivePrice(scrapedProduct.currentPrice)) {
+            return {
+                error: "Could not scrape this product, so nothing was saved. Products already saved are still listed below.",
+            }
+        }
 
         let product: any = scrapedProduct
 
@@ -44,19 +50,28 @@ export async function scrapeAndStoreProduct(productUrl: string) {
         );
 
         revalidatePath(`/products/${newProduct._id}`)
+        return {}
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Could not save this product."
+        console.log(message)
 
-    } catch (error: any) {
-        throw new Error(`Failed to create/update product: ${error.message}`)
+        if (message.startsWith("Could not")) {
+            return { error: message }
+        }
+
+        return {
+            error: "Could not save this product. Products already saved are still listed below.",
+        }
     }
 }
 
 export async function getProductById(productId: string) {
     try {
-        connectToDB()
+        await connectToDB()
 
         const product = await Product.findOne({ _id: productId })
 
-        if (!product) return null
+        if (!product || !isPositivePrice(product.currentPrice)) return null
 
         return product
     } catch (error) {
@@ -66,9 +81,9 @@ export async function getProductById(productId: string) {
 
 export async function getAllProducts() {
     try {
-        connectToDB()
+        await connectToDB()
 
-        const products = await Product.find()
+        const products = await Product.find({ currentPrice: { $gt: 0 } })
 
         return products
     } catch (error) {
@@ -78,7 +93,7 @@ export async function getAllProducts() {
 
 export async function getSimilarProducts(productId: string) {
     try {
-        connectToDB()
+        await connectToDB()
 
         const currentProduct = await Product.findById(productId)
 
@@ -86,6 +101,7 @@ export async function getSimilarProducts(productId: string) {
 
         const similarProducts = await Product.find({
             _id: { $ne: productId },
+            currentPrice: { $gt: 0 },
         }).limit(3)
 
         return similarProducts
@@ -96,6 +112,8 @@ export async function getSimilarProducts(productId: string) {
 
 export async function addUserEmailToProduct(productId: string, userEmail: string) {
     try {
+        await connectToDB()
+
         const product = await Product.findById(productId)
         if (!product) return;
 

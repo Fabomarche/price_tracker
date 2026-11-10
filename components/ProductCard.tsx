@@ -7,6 +7,8 @@ interface Props {
 }
 
 const ProductCard = ({ product }: Props) => {
+    if (!(product?.currentPrice > 0)) return null
+
     return (
         <Link href={`/products/${product._id}`} className='product-card'>
             <div className='product-card_img-container'>
